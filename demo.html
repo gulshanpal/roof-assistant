@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roof Assistant Demo</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+    main { max-width: 720px; margin: 0 auto; padding: 64px 20px; line-height: 1.6; }
+    h1 { font-size: 2rem; margin-bottom: .5rem; }
+    code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Demo Roofing Co.</h1>
+    <p>This page stands in for a client's website. Click the chat bubble in the bottom-right corner.</p>
+    <p>Try typing questions like <em>"How much does a new roof cost?"</em> or <em>"Do you help with insurance claims?"</em>.</p>
+    <p>Open DevTools → Console to see the lead when you finish. Run <code>RoofAssistant.reset()</code> to start over.</p>
+  </main>
+
+  <!-- ===== The 3-line snippet your client pastes ===== -->
+  <script src="/chat-widget.js"
+          data-client-id="demo-roofing"
+          data-debug="true" async></script>
+</body>
+</html>

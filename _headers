@@ -1,0 +1,10 @@
+# Lets client websites (other domains) load the widget and its config.
+# The /api/chat function sets its own CORS headers.
+
+/chat-widget.js
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+/server-config.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=60, stale-while-revalidate=3600

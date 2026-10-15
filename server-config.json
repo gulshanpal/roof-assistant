@@ -1,0 +1,80 @@
+{
+  "_readme": {
+    "what": "Client database for the Roof Assistant AI receptionist. One entry per client, keyed by client_id.",
+    "how_to_add_a_client": "Copy a client block, give it a new unique key, set the same value in client_id, push/deploy. The client's snippet uses data-client-id=\"<that key>\".",
+    "fields": {
+      "client_id": "REQUIRED. Unique key. Must match the object key and data-client-id in the client's script tag.",
+      "company_name": "REQUIRED. Shown in the header and greeting, and used by the AI.",
+      "city": "Recommended. City/area the AI says the company is in, e.g. 'Orlando, Florida'.",
+      "primary_color": "REQUIRED. Brand hex colour (#RGB or #RRGGBB). Text colour on top is picked automatically.",
+      "email": "Where leads are emailed (free FormSubmit relay). The client confirms once on the first lead.",
+      "webhook_url": "Optional. Lead JSON is also POSTed here (their CRM, Zapier, etc.). Leave empty to skip.",
+      "allowed_domains": "Domain lock. Widget and AI only work on these domains (+ subdomains). localhost always works for testing.",
+      "services": "The quick-reply service buttons (max 4). Emoji at the start is optional.",
+      "business_info": "FACTS the AI may use to answer questions (areas served, insurance, financing, licenses). The AI is told never to invent anything not written here. Only write what is TRUE for this client.",
+      "ai_enabled": "true = AI answers typed questions. false = scripted flow only (free plan tier).",
+      "ai_max_turns": "Max AI replies per conversation before switching to the script (cost/abuse protection).",
+      "greeting": "Optional custom first message. Default greets with company name and the three services.",
+      "region": "'US' or 'UK' (ZIP vs postcode checks).",
+      "logo_url": "Optional square image for the header. Falls back to initials.",
+      "position": "'right' (default) or 'left'.",
+      "teaser_text": "Small nudge bubble above the launcher. Empty string disables it.",
+      "footer_text": "Small trust line under the chat. {company} is replaced with company_name.",
+      "active": "false switches a client off instantly (widget and AI)."
+    }
+  },
+
+  "version": "2.0.0",
+
+  "defaults": {
+    "primary_color": "#0f4c81",
+    "region": "US",
+    "position": "right",
+    "services": ["🔴 Emergency Leak Repair", "🔨 Full Roof Replacement", "⛈️ Storm Damage Estimate"],
+    "ai_enabled": true,
+    "ai_max_turns": 12,
+    "teaser_text": "Roof leak or storm damage? Get help in 60 seconds 👋",
+    "teaser_delay_ms": 4000,
+    "footer_text": "🔒 Your details are only shared with {company}.",
+    "allowed_domains": [],
+    "active": true
+  },
+
+  "clients": {
+    "demo-roofing": {
+      "client_id": "demo-roofing",
+      "company_name": "Demo Roofing Co.",
+      "city": "Orlando, Florida",
+      "primary_color": "#1d4ed8",
+      "email": "",
+      "webhook_url": "",
+      "allowed_domains": [],
+      "business_info": "SAMPLE DATA FOR TESTING ONLY. We serve Orlando, Winter Park, Kissimmee and Sanford. Estimates are free. We help homeowners document storm damage for insurance claims. Financing options are available on full replacements."
+    },
+
+    "talentssoftware-demo": {
+      "client_id": "talentssoftware-demo",
+      "company_name": "Demo Roofing Co.",
+      "city": "Orlando, Florida",
+      "primary_color": "#ea580c",
+      "email": "REPLACE-with-your-email-for-demo-leads@example.com",
+      "webhook_url": "",
+      "allowed_domains": ["talentssoftware.com"],
+      "teaser_text": "Try me! Pretend you're a homeowner with a roof leak 👋",
+      "footer_text": "Live demo by TalentsSoftware · AI Roofing Lead Assistant",
+      "business_info": "This is a live demo for roofing company owners, built by TalentsSoftware. Act exactly as you would for a real roofing company in Orlando, Florida. Sample facts: we serve Orlando, Winter Park, Kissimmee and Sanford; estimates are free; we help homeowners document storm damage for insurance claims; financing is available on full replacements. If someone asks who built this assistant or how to get it for their own roofing business, say it was built by TalentsSoftware and they can request it at talentssoftware.com/contact."
+    },
+
+    "sunshine-roofing-orlando": {
+      "client_id": "sunshine-roofing-orlando",
+      "company_name": "Sunshine State Roofing",
+      "city": "Orlando, Florida",
+      "primary_color": "#ea580c",
+      "email": "REPLACE-with-client-email@example.com",
+      "webhook_url": "",
+      "allowed_domains": ["REPLACE-with-client-domain.com"],
+      "business_info": "REPLACE with the client's real facts, e.g.: Areas we serve. Whether estimates are free. Insurance claim help. Financing. Years in business. License number. Only write things that are true.",
+      "logo_url": ""
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# Cloudflare Pages project settings for Roof Assistant.
+# Cloudflare reads this file automatically when the project is deployed from GitHub.
+
+name = "roof-assistant"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-10-01"
+
+# Cloudflare Workers AI: gives the /api/chat function free access to AI models
+# as `env.AI`. No API key is needed.
+[ai]
+binding = "AI"
+
+[vars]
+AI_PROVIDER = "workers-ai"
+AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+# Optional: use Groq instead (it has its own free tier):
+#   AI_PROVIDER = "openai"
+#   AI_BASE_URL = "https://api.groq.com/openai/v1"
+#   AI_MODEL    = "openai/gpt-oss-120b"
+# and add the key as an encrypted secret (never in this file):
+#   Cloudflare dashboard → your Pages project → Settings → Variables and Secrets
+#   → Add → Type: Secret → Name: AI_API_KEY
