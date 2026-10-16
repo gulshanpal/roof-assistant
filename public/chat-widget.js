@@ -1,6 +1,6 @@
 /*!
  * ============================================================================
- *  Roof Assistant — AI Receptionist Chat Widget                      v2.0.0
+ *  Roof Assistant — AI Receptionist Chat Widget                      v2.1.0
  * ============================================================================
  *
  *  EMBED SNIPPET (the client pastes this just before </body>):
@@ -13,6 +13,7 @@
  *    data-config-url  Override where server-config.json lives
  *    data-api-url     Override where the AI endpoint lives (default /api/chat)
  *    data-debug="true" Verbose console logging
+ *    data-color="#ea580c"  Force a colour ("auto" = match the website theme)
  *
  *  HOW IT WORKS
  *    - The visitor can tap quick-reply buttons OR type anything.
@@ -32,7 +33,7 @@
 (function (window, document) {
   'use strict';
 
-  var WIDGET_VERSION = '2.0.0';
+  var WIDGET_VERSION = '2.1.0';
 
   /* ==========================================================================
    * 1. FIND OUR <script> TAG AND READ ITS ATTRIBUTES
@@ -45,6 +46,8 @@
 
   var CLIENT_ID = (scriptTag.getAttribute('data-client-id') || '').trim();
   var DEBUG = scriptTag.getAttribute('data-debug') === 'true';
+  // Optional colour override on the script tag: data-color="#ea580c" or "auto".
+  var COLOR_OVERRIDE = (scriptTag.getAttribute('data-color') || '').trim();
   var BASE_URL = scriptTag.src || window.location.href;
   var CONFIG_URL = scriptTag.getAttribute('data-config-url') || new URL('server-config.json', BASE_URL).href;
   var API_URL = scriptTag.getAttribute('data-api-url') || new URL('/api/chat', BASE_URL).href;
@@ -140,7 +143,10 @@
   // WCAG luminance → white or dark text, so any brand colour stays readable.
   function readableTextColor(hex) {
     var l = hexToRgb(hex).map(function (c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
-    return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.179 ? '#111827' : '#ffffff';
+    var L = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+    // White text whenever it's clearly readable (contrast >= 3:1, like most brand
+    // buttons); dark text only on light colours such as yellow or light blue.
+    return (1.05 / (L + 0.05)) >= 3 ? '#ffffff' : '#111827';
   }
   function initials(name) {
     return String(name || '?').split(/\s+/).filter(function (w) { return /^[a-z0-9]/i.test(w); })
@@ -222,6 +228,147 @@
   function asksPrice(text) { return /\b(price|cost|how much|quote|charge|expensive|cheap|\$)/i.test(text); }
 
 
+  /* ---------------- Automatic theme colour ----------------------------------
+   * With primary_color "auto", the bot reads the host website's brand colour,
+   * so it matches any client's site with no manual setup. It looks at:
+   *   1. Theme CSS variables used by site builders (Lovable/shadcn, Tailwind
+   *      themes, WordPress block themes, Elementor, Astra, Kadence...)
+   *   2. <meta name="theme-color">
+   *   3. The most common background colour of the site's buttons
+   *   4. Bootstrap/Material defaults, link colour, header background
+   * The first VIVID colour wins. If the site only uses dark/neutral colours,
+   * its explicit theme colour is used. If nothing is found: fallback_color.
+   * ------------------------------------------------------------------------ */
+  var THEME_VARS = [
+    '--primary', '--color-primary', '--primary-color', '--brand', '--brand-color', '--color-brand',
+    '--brand-primary', '--theme-color', '--theme-primary', '--main-color', '--accent-color', '--color-accent',
+    '--wp--preset--color--primary', '--wp--preset--color--accent', '--e-global-color-primary',
+    '--e-global-color-accent', '--ast-global-color-0', '--global-palette1'
+  ];
+  var WEAK_THEME_VARS = ['--bs-primary', '--mdc-theme-primary', '--accent'];
+  var BUTTON_SELECTOR = 'button, input[type="submit"], input[type="button"], [role="button"], .btn, .button, ' +
+    'a[class*="btn"], a[class*="button"], .wp-block-button__link, .elementor-button';
+
+  // Converts ANY CSS colour (hex, rgb, hsl, oklch, names, shadcn-style bare
+  // "24 95% 53%") into [r, g, b] by letting the browser paint one pixel.
+  var colorCtx = null;
+  function colorToRgb(value) {
+    value = String(value || '').trim();
+    if (!value || /^(transparent|none|inherit|initial|unset|currentcolor)$/i.test(value)) return null;
+    if (!colorCtx) {
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      colorCtx = canvas.getContext ? canvas.getContext('2d', { willReadFrequently: true }) : null;
+      if (!colorCtx) return null;
+    }
+    var attempts = [value];
+    if (/^-?\.?\d/.test(value)) attempts.push(/%/.test(value) ? 'hsl(' + value + ')' : 'rgb(' + value + ')');
+    for (var i = 0; i < attempts.length; i++) {
+      colorCtx.fillStyle = '#010203';            // sentinel
+      colorCtx.fillStyle = attempts[i];
+      if (String(colorCtx.fillStyle).toLowerCase() === '#010203') continue; // browser rejected it
+      colorCtx.clearRect(0, 0, 1, 1);
+      colorCtx.fillRect(0, 0, 1, 1);
+      var px = colorCtx.getImageData(0, 0, 1, 1).data;
+      return px[3] < 200 ? null : [px[0], px[1], px[2]]; // ignore (semi-)transparent colours
+    }
+    return null;
+  }
+
+  function rgbToHex(rgb) {
+    return '#' + rgb.map(function (c) { return ('0' + c.toString(16)).slice(-2); }).join('');
+  }
+  function satLight(rgb) {
+    var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+    return { s: d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1)), l: l };
+  }
+  // A clear brand colour: saturated, not too light or too dark.
+  function isVivid(rgb) { var x = satLight(rgb); return x.s >= 0.3 && x.l >= 0.15 && x.l <= 0.8; }
+  // Acceptable when the site explicitly declares it (e.g. a dark navy theme).
+  function isUsable(rgb) { var x = satLight(rgb); return x.l >= 0.06 && x.l <= 0.9; }
+  // Browser default link colours mean "unstyled", not a brand colour.
+  function isDefaultLink(rgb) { var k = rgb.join(','); return k === '0,0,238' || k === '85,26,139' || k === '0,0,255'; }
+
+  function backgroundOf(el) {
+    var st = getComputedStyle(el);
+    var rgb = colorToRgb(st.backgroundColor);
+    if (!rgb) { // gradient buttons: use the first colour of the gradient
+      var m = String(st.backgroundImage || '').match(/(rgba?|hsla?|oklch|oklab|lab|lch|color)\([^()]*\)|#[0-9a-f]{3,8}\b/i);
+      if (m) rgb = colorToRgb(m[0]);
+    }
+    return rgb;
+  }
+
+  function mostCommonButtonColor() {
+    var els = document.querySelectorAll(BUTTON_SELECTOR);
+    var scores = {}, best = null, bestScore = 0;
+    for (var i = 0; i < els.length && i < 80; i++) {
+      var box = els[i].getBoundingClientRect();
+      if (box.width < 24 || box.height < 16) continue; // hidden or tiny
+      var rgb = backgroundOf(els[i]);
+      if (!rgb || !isVivid(rgb)) continue;
+      var key = rgb.join(',');
+      // Each button counts once; bigger buttons (main call-to-action) count a little more.
+      scores[key] = (scores[key] || 0) + 1 + Math.min(box.width * box.height, 20000) / 20000;
+      if (scores[key] > bestScore) { bestScore = scores[key]; best = rgb; }
+    }
+    return best;
+  }
+
+  function detectSiteColor() {
+    var rootStyle = getComputedStyle(document.documentElement);
+    var bodyStyle = document.body ? getComputedStyle(document.body) : null;
+    var candidates = []; // { rgb, explicit }
+    function addVar(name, explicit) {
+      var v = rootStyle.getPropertyValue(name) || (bodyStyle && bodyStyle.getPropertyValue(name));
+      var rgb = colorToRgb(v);
+      if (rgb) candidates.push({ rgb: rgb, explicit: explicit, from: name });
+    }
+
+    THEME_VARS.forEach(function (n) { addVar(n, true); });
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      var metaRgb = colorToRgb(meta.getAttribute('content'));
+      if (metaRgb) candidates.push({ rgb: metaRgb, explicit: true, from: 'meta theme-color' });
+    }
+    var btn = mostCommonButtonColor();
+    if (btn) candidates.push({ rgb: btn, explicit: false, from: 'buttons' });
+    WEAK_THEME_VARS.forEach(function (n) { addVar(n, false); });
+    var link = document.querySelector('main a[href], article a[href], a[href]');
+    if (link) {
+      var linkRgb = colorToRgb(getComputedStyle(link).color);
+      if (linkRgb && !isDefaultLink(linkRgb)) candidates.push({ rgb: linkRgb, explicit: false, from: 'links' });
+    }
+    var header = document.querySelector('header, nav, [class*="header"], [class*="navbar"]');
+    if (header) {
+      var headRgb = backgroundOf(header);
+      if (headRgb) candidates.push({ rgb: headRgb, explicit: false, from: 'header' });
+    }
+
+    var pick = null;
+    for (var i = 0; i < candidates.length && !pick; i++) if (isVivid(candidates[i].rgb)) pick = candidates[i];
+    for (var j = 0; j < candidates.length && !pick; j++) if (candidates[j].explicit && isUsable(candidates[j].rgb)) pick = candidates[j];
+    if (pick) log('Theme colour detected from ' + pick.from + ':', rgbToHex(pick.rgb));
+    return pick ? rgbToHex(pick.rgb) : null;
+  }
+
+  // Wait until the host page's styles are applied (max 2.5 s), then detect.
+  function resolveThemeColor(cfg) {
+    if (cfg.primary_color !== 'auto') return Promise.resolve();
+    var ready = document.readyState === 'complete' ? Promise.resolve() : new Promise(function (resolve) {
+      window.addEventListener('load', resolve);
+      setTimeout(resolve, 2500);
+    });
+    return ready.then(function () {
+      var found = null;
+      try { found = detectSiteColor(); } catch (e) { log('Colour detection failed:', e && e.message); }
+      cfg.primary_color = found || cfg.fallback_color;
+      if (!found) log('No theme colour found; using fallback', cfg.fallback_color);
+    });
+  }
+
+
   /* ==========================================================================
    * 5. CONFIG LOADING
    * ======================================================================== */
@@ -238,7 +385,13 @@
         var cfg = Object.assign({}, db.defaults || {}, client);
         cfg.client_id = CLIENT_ID;
         cfg.company_name = String(cfg.company_name || 'Our Team');
-        cfg.primary_color = normalizeHex(cfg.primary_color, '#0f4c81');
+        // Colour: data-color on the script tag wins, then the config value.
+        // "auto" (or no value) = match the host website's theme, resolved in init().
+        var wantedColor = COLOR_OVERRIDE || cfg.primary_color || 'auto';
+        cfg.fallback_color = normalizeHex(cfg.fallback_color, '#0f4c81');
+        cfg.primary_color = String(wantedColor).toLowerCase() === 'auto'
+          ? 'auto'
+          : normalizeHex(wantedColor, cfg.fallback_color);
         cfg.region = REGION_HINTS[cfg.region] ? cfg.region : 'US';
         cfg.services = (Array.isArray(cfg.services) && cfg.services.length ? cfg.services : DEFAULT_SERVICES).slice(0, 4);
         cfg.ai_enabled = cfg.ai_enabled !== false;
@@ -826,7 +979,7 @@
         console.warn('[RoofAssistant] "' + window.location.hostname + '" is not in allowed_domains for "' + CLIENT_ID + '". Widget not loaded.');
         return;
       }
-      createWidget(cfg);
+      return resolveThemeColor(cfg).then(function () { createWidget(cfg); });
     }).catch(function (err) {
       console.error('[RoofAssistant] Failed to start:', err && err.message ? err.message : err);
     });

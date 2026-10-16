@@ -73,8 +73,11 @@ roof-assistant/
 
 ## Adding a roofing client (about 10 minutes)
 
-1. Get: company name, city, brand colour, lead email, website domain, and a few **true**
+1. Get: company name, city, lead email, website domain, and a few **true**
    facts (areas served, free estimates?, insurance help?, financing?, years in business).
+   No colour needed: with `"primary_color": "auto"` the bot copies the brand colour of the
+   website it's installed on. To force a colour, set e.g. `"primary_color": "#c62828"`, or
+   add `data-color="#c62828"` to the script tag. `fallback_color` is used if no colour is found.
 2. In `server-config.json`, copy the `sunshine-roofing-orlando` block, fill it in, and commit.
 3. Paste the snippet on their website with their `data-client-id`:
    - WordPress: WPCode plugin → Header & Footer → Footer

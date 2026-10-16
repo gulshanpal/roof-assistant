@@ -6,7 +6,8 @@
       "client_id": "REQUIRED. Unique key. Must match the object key and data-client-id in the client's script tag.",
       "company_name": "REQUIRED. Shown in the header and greeting, and used by the AI.",
       "city": "Recommended. City/area the AI says the company is in, e.g. 'Orlando, Florida'.",
-      "primary_color": "REQUIRED. Brand hex colour (#RGB or #RRGGBB). Text colour on top is picked automatically.",
+      "primary_color": "\"auto\" (default) = the bot copies the brand colour of the website it is installed on. Or a fixed hex colour like \"#ea580c\". Text colour on top is picked automatically.",
+      "fallback_color": "Colour used when \"auto\" can't find a brand colour on the website.",
       "email": "Where leads are emailed (free FormSubmit relay). The client confirms once on the first lead.",
       "webhook_url": "Optional. Lead JSON is also POSTed here (their CRM, Zapier, etc.). Leave empty to skip.",
       "allowed_domains": "Domain lock. Widget and AI only work on these domains (+ subdomains). localhost always works for testing.",
@@ -24,10 +25,11 @@
     }
   },
 
-  "version": "2.0.0",
+  "version": "2.1.0",
 
   "defaults": {
-    "primary_color": "#0f4c81",
+    "primary_color": "auto",
+    "fallback_color": "#0f4c81",
     "region": "US",
     "position": "right",
     "services": ["🔴 Emergency Leak Repair", "🔨 Full Roof Replacement", "⛈️ Storm Damage Estimate"],
@@ -56,7 +58,8 @@
       "client_id": "talentssoftware-demo",
       "company_name": "Demo Roofing Co.",
       "city": "Orlando, Florida",
-      "primary_color": "#ea580c",
+      "primary_color": "auto",
+      "fallback_color": "#ea580c",
       "email": "palgk8655@gmail.com",
       "webhook_url": "",
       "allowed_domains": ["talentssoftware.com"],
@@ -69,7 +72,8 @@
       "client_id": "sunshine-roofing-orlando",
       "company_name": "Sunshine State Roofing",
       "city": "Orlando, Florida",
-      "primary_color": "#ea580c",
+      "primary_color": "auto",
+      "fallback_color": "#ea580c",
       "email": "REPLACE-with-client-email@example.com",
       "webhook_url": "",
       "allowed_domains": ["REPLACE-with-client-domain.com"],
