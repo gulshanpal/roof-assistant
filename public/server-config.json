@@ -67,7 +67,7 @@
       "fallback_color": "#ea580c",
       "email": "palgk8655@gmail.com",
       "webhook_url": "",
-      "allowed_domains": ["talentssoftware.com"],
+      "allowed_domains": ["talentssoftware.com", "lovable.app", "lovableproject.com", "lovable.dev"],
       "teaser_text": "Try me! Pretend you're a homeowner with a roof leak 👋",
       "teaser_delay_ms": 2500,
       "footer_text": "Live demo by TalentsSoftware · AI Roofing Lead Assistant",
