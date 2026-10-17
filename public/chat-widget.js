@@ -1,6 +1,6 @@
 /*!
  * ============================================================================
- *  Roof Assistant — AI Receptionist Chat Widget                      v2.1.0
+ *  Roof Assistant — AI Receptionist Chat Widget                      v2.2.0
  * ============================================================================
  *
  *  EMBED SNIPPET (the client pastes this just before </body>):
@@ -33,7 +33,7 @@
 (function (window, document) {
   'use strict';
 
-  var WIDGET_VERSION = '2.1.0';
+  var WIDGET_VERSION = '2.2.0';
 
   /* ==========================================================================
    * 1. FIND OUR <script> TAG AND READ ITS ATTRIBUTES
@@ -428,6 +428,16 @@
       '.ra-attention::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--ra-primary);z-index:-1;animation:ra-ring 2.2s ease-out infinite}',
       '.ra-badge{position:absolute;top:-3px;right:-3px;min-width:21px;height:21px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff}',
 
+      /* Attention effects: pop-in, wiggle, "typing" teaser */
+      '.ra-launcher{animation:ra-enter .6s cubic-bezier(.34,1.56,.64,1) .3s backwards}',
+      '.ra-launcher.ra-wiggle{animation:ra-wiggle 1s ease both}',
+      '.ra-teaser-dots{display:inline-flex;gap:4px;padding:5px 0}',
+      '.ra-teaser-dots span{width:7px;height:7px;border-radius:50%;background:#9ca3af;animation:ra-bounce 1.2s infinite ease-in-out}',
+      '.ra-teaser-dots span:nth-child(2){animation-delay:.15s}.ra-teaser-dots span:nth-child(3){animation-delay:.3s}',
+      '.ra-teaser-text{display:none}',
+      '.ra-teaser.ra-typed .ra-teaser-text{display:inline;animation:ra-pop .3s ease both}',
+      '.ra-teaser.ra-typed .ra-teaser-dots{display:none}',
+
       /* Teaser */
       '.ra-teaser{position:fixed;bottom:98px;right:24px;z-index:2147483000;max-width:250px;background:#fff;color:var(--ra-text);padding:12px 34px 12px 14px;border-radius:14px;font-size:14px;cursor:pointer;border:1px solid var(--ra-border);box-shadow:0 10px 30px rgba(15,23,42,.16);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s}',
       '.ra-teaser.ra-show{opacity:1;visibility:visible;transform:none;transition-delay:0s}',
@@ -496,6 +506,8 @@
       '@keyframes ra-pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}',
       '@keyframes ra-bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}',
       '@keyframes ra-ring{0%{transform:scale(1);opacity:.45}100%{transform:scale(1.55);opacity:0}}',
+      '@keyframes ra-enter{from{opacity:0;transform:scale(.3) translateY(24px)}to{opacity:1;transform:none}}',
+      '@keyframes ra-wiggle{0%,100%{transform:none}15%{transform:rotate(-14deg) scale(1.1)}30%{transform:rotate(11deg) scale(1.1)}45%{transform:rotate(-8deg) scale(1.06)}60%{transform:rotate(5deg)}75%{transform:rotate(-2deg)}}',
       '@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}'
     ].join('');
   }
@@ -541,6 +553,10 @@
     /* ---------------- Build the DOM --------------------------------------- */
     function mount() {
       var host = el('div', { id: 'roof-assistant-host', 'data-client': CLIENT_ID });
+      hostEl = host;
+      ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+        window.addEventListener(ev, onGesture, { capture: true, passive: true });
+      });
       document.body.appendChild(host);
       var root = host.attachShadow({ mode: 'open' });
       root.appendChild(el('style', { text: buildStyles(cfg) }));
@@ -561,10 +577,24 @@
         tx.innerHTML = ICONS.close;
         ui.teaser = el('div', { class: 'ra-teaser', role: 'button', tabindex: '0', onclick: function () { open(); },
           onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } },
-          [el('span', { text: cfg.teaser_text }), tx]);
-        teaserTimer = setTimeout(function () { if (!state.open && ui.teaser) ui.teaser.classList.add('ra-show'); },
-          Number(cfg.teaser_delay_ms) || 4000);
+          [el('span', { class: 'ra-teaser-dots', 'aria-hidden': 'true' }, [el('span'), el('span'), el('span')]),
+           el('span', { class: 'ra-teaser-text', text: cfg.teaser_text }), tx]);
+        teaserTimer = setTimeout(function () {
+          if (state.open || !ui.teaser) return;
+          ui.teaser.classList.add('ra-show');          // pops up showing "typing" dots…
+          teaserTimer = setTimeout(function () {
+            if (state.open || !ui.teaser) return;
+            ui.teaser.classList.add('ra-typed');       // …then the message appears,
+            wiggleLauncher();                          // the bubble wiggles,
+            chime('teaser');                           // and a soft chime plays (when the browser allows)
+          }, 1400);
+        }, Number(cfg.teaser_delay_ms) || 4000);
+      } else if (!state.transcript.length) {
+        wiggleTimer = setTimeout(wiggleLauncher, Number(cfg.teaser_delay_ms) || 4000);
       }
+      ui.launcher.addEventListener('animationend', function (e) {
+        if (e.animationName === 'ra-wiggle') ui.launcher.classList.remove('ra-wiggle');
+      });
 
       var avatar = el('div', { class: 'ra-avatar', 'aria-hidden': 'true' });
       if (cfg.logo_url) avatar.appendChild(el('img', { src: cfg.logo_url, alt: '' }));
@@ -630,6 +660,8 @@
       ui.launcher.classList.remove('ra-attention');
       if (ui.badge.parentNode) ui.badge.parentNode.removeChild(ui.badge);
       hideTeaser(false);
+      clearTimeout(wiggleTimer);
+      ui.launcher.classList.remove('ra-wiggle');
       saveState();
       if (state.step === STEP.INIT) startConversation();
       if (!silent && !isSmallScreen()) setTimeout(function () { ui.input.focus(); }, 380);
@@ -646,8 +678,75 @@
     }
     function hideTeaser(dismissed) {
       clearTimeout(teaserTimer);
+      pendingChime = false;
       if (ui.teaser) ui.teaser.classList.remove('ra-show');
       if (dismissed) { state.teaser_dismissed = true; saveState(); }
+    }
+
+    /* ---------------- Attention: wiggle ----------------------------------- */
+    // The launcher wiggles when the teaser appears, then every 8 s (max 4 times)
+    // until the visitor opens the chat. Turn off with "attention_effects": false.
+    var wiggles = 0, wiggleTimer = null;
+    function wiggleLauncher() {
+      if (cfg.attention_effects === false || state.open || state.transcript.length) return;
+      ui.launcher.classList.remove('ra-wiggle');
+      void ui.launcher.offsetWidth;                    // restart the animation
+      ui.launcher.classList.add('ra-wiggle');
+      if (++wiggles < 4) wiggleTimer = setTimeout(wiggleLauncher, 8000);
+    }
+
+    /* ---------------- Attention: sound ------------------------------------
+     * Browsers block sound until the visitor has clicked, tapped or pressed a
+     * key on the page. So the teaser chime plays immediately if they already
+     * have; otherwise it plays on their first click/tap while the teaser is
+     * showing. While the chat is open, each bot reply makes a very soft "pop".
+     * The sounds are generated in code (no audio files). "sound": false = off.
+     * --------------------------------------------------------------------- */
+    var audioCtx = null, pendingChime = false, userActive = false, hostEl = null;
+    function hasUserActivation() {
+      return navigator.userActivation ? navigator.userActivation.hasBeenActive : userActive;
+    }
+    function ensureAudio() {
+      try {
+        if (!audioCtx) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          audioCtx = new AC();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      } catch (e) { return null; }
+    }
+    function playTones(kind) {
+      if (cfg.sound === false || !hasUserActivation()) return;
+      var ctx = ensureAudio();
+      if (!ctx) return;
+      var notes = kind === 'teaser' ? [[659.25, 0], [880, 0.13]] : [[740, 0]]; // E5→A5 chime, or one soft pop
+      var vol = kind === 'teaser' ? 0.08 : 0.03;
+      notes.forEach(function (n) {
+        var osc = ctx.createOscillator(), gain = ctx.createGain(), t = ctx.currentTime + n[1];
+        osc.type = 'sine';
+        osc.frequency.value = n[0];
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.45);
+      });
+    }
+    function chime(kind) {
+      if (cfg.sound === false) return;
+      if (hasUserActivation()) playTones(kind);
+      else if (kind === 'teaser') pendingChime = true; // wait for the first click/tap
+    }
+    function onGesture(e) {
+      userActive = true;
+      if (cfg.sound === false) return;
+      var onWidget = !!(e.composedPath && hostEl && e.composedPath().indexOf(hostEl) !== -1);
+      if (pendingChime && !state.open && !onWidget) { pendingChime = false; playTones('teaser'); }
+      else if (onWidget) ensureAudio(); // unlocks audio for reply sounds (needed on iPhone/Safari)
     }
     function scrollToBottom() { ui.messages.scrollTop = ui.messages.scrollHeight; }
 
@@ -677,6 +776,7 @@
     function botPost(text, chips) {
       appendBubble('bot', text, true);
       record('bot', text);
+      if (state.open) chime('reply');
       state.chips = chips || [];
       saveState();
       renderFooter();
